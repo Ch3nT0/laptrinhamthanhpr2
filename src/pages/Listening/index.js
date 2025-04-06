@@ -1,6 +1,7 @@
 import React from 'react';
 import './style.css';
 import { useNavigate } from 'react-router-dom';
+import Header1 from '../../components/Header/header1';
 
 function Listening() {
   const practices = Array.from({ length: 10 }, (_, i) => `Practice ${i + 1}`);
@@ -11,6 +12,8 @@ function Listening() {
   };
 
   return (
+    <>
+    <Header1/>
     <div className="container">
       {practices.map((text, index) => (
         <div key={index} className="box" onClick={() => handleClick(index)}>
@@ -18,7 +21,9 @@ function Listening() {
         </div>
       ))}
     </div>
+    </>
   );
+  
 }
 
 export default Listening;

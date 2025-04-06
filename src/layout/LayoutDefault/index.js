@@ -1,34 +1,32 @@
 import { Outlet } from "react-router-dom";
 import { Layout } from "antd";
-import { Content } from "antd/es/layout/layout";
-import Sider from "../../components/Sider";
+import Sider1 from "../../components/Sider";
+const {Sider, Content } = Layout;
 export default function LayoutDefault() {
 
     const layoutStyle = {
         borderRadius: 8,
         overflow: 'hidden',
-        width: 'calc(50% - 8px)',
-        maxWidth: 'calc(50% - 8px)',
+        height: '100vh',
     };
     const siderStyle = {
         textAlign: 'center',
         lineHeight: '120px',
-        color: '#fff',
-        backgroundColor: '#1677ff',
+        color: '#000',
+        backgroundColor: '#fff',
+        borderRight: '1px solid #000',
     };
     const contentStyle = {
         textAlign: 'center',
         minHeight: 120,
         lineHeight: '120px',
     };
-
-
     return (<>
         <Layout style={layoutStyle}>
-            <Sider width="25%" style={siderStyle}>
-                <Sider/>
+            <Sider width="20%" style={siderStyle}>
+                <Sider1/>
             </Sider>
-            <Layout>
+            <Layout >
                 <Content style={contentStyle}><Outlet/></Content>
             </Layout>
         </Layout>

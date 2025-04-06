@@ -1,62 +1,134 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Button } from 'antd';
+import { RightOutlined, SearchOutlined } from '@ant-design/icons';
+import Header2 from "../../components/Header/Header2";
 
-const SpeechToText = () => {
-  const [transcription, setTranscription] = useState('');
-  const [loading, setLoading] = useState(false);
+function Quizz0() {
+  const params = useParams();
+  const navigate = useNavigate();
+  const [check, setCheck] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [isFilterOn, setIsFilterOn] = useState(false); // Trạng thái bật/tắt bộ lọc âm thanh
+  const audioContextRef = useRef(null);
+  const audioRef = useRef(null);
+  const audioSourceRef = useRef(null);  // Ref for MediaElementSourceNode
+  const filterRef = useRef(null); // Ref for the audio filter
 
-  const transcribeAudio = async (audioUrl) => {
-    setLoading(true);
+  const handleCheck = () => {
+    setCheck(!check);
+  };
 
-    try {
-      // Tải file âm thanh từ URL
-      const audioData = await fetch(audioUrl);
-      const audioBuffer = await audioData.arrayBuffer();
-      const audioContent = Buffer.from(audioBuffer).toString('base64');  // Chuyển đổi sang base64
+  const handleNext = () => {
+    setCheck(false);
+    navigate(`/quizz/${parseInt(params.id) + 1}`);
+  };
 
-      // Dữ liệu gửi lên Cloud Function hoặc API Gateway
-      const data = {
-        audioContent: audioContent,
-        encoding: "MP3",  // Định dạng âm thanh (MP3 trong trường hợp này)
-        sampleRateHertz: 16000,  // Tốc độ mẫu (nên khớp với file âm thanh)
-        languageCode: "en-US",  // Ngôn ngữ
-      };
+  useEffect(() => {
+    if (!audioRef.current) return;
 
-      // Gửi yêu cầu tới Cloud Function hoặc API Gateway của bạn
-      const response = await axios.post(
-        'https://your-cloud-function-url.com/api/transcribe',  // Thay URL này bằng Cloud Function của bạn
-        data
-      );
-
-      // Cập nhật kết quả nhận dạng
-      if (response.data && response.data.transcript) {
-        setTranscription(response.data.transcript);
-      } else {
-        setTranscription('Không thể nhận dạng được văn bản từ âm thanh.');
-      }
-
-    } catch (error) {
-      console.error('Lỗi khi nhận dạng âm thanh:', error);
-      setTranscription('Đã xảy ra lỗi.');
+    // Khởi tạo AudioContext và kết nối bộ lọc chỉ một lần
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
-    setLoading(false);
+
+    // Check if the audio source has already been connected
+    if (!audioSourceRef.current) {
+      const audioElement = audioRef.current;
+      audioSourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
+
+      // Tạo một bộ lọc bandpass hoặc high-pass mạnh
+      const filter = audioContextRef.current.createBiquadFilter();
+      filter.type = "highpass";  // Sử dụng highpass để cắt các tần số thấp
+      filter.frequency.value = 1500;  // Cắt tần số dưới 1500Hz (chỉ để lại âm thanh cao)
+
+      filterRef.current = filter; // Lưu lại ref bộ lọc
+
+      audioSourceRef.current.connect(filter);
+      filter.connect(audioContextRef.current.destination);
+    }
+
+    return () => {
+      // Hủy kết nối khi component unmount
+      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);  // Chạy lại khi có audio mới
+
+  const handlePlayAudio = () => {
+    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+      audioContextRef.current.resume();
+    }
+    audioRef.current.play();
+  };
+
+  const handleFilterToggle = () => {
+    setIsFilterOn(prevState => {
+      const newState = !prevState;
+      if (filterRef.current) {
+        filterRef.current.frequency.value = newState ? 1500 : 0; // Bật/tắt bộ lọc
+      }
+      return newState;
+    });
+  };
+
+  const handleBack = () => {
+    navigate(`/listening`);
   };
 
   return (
-    <div>
-      <h1>Chuyển Đổi Âm Thanh Thành Văn Bản</h1>
-      <button
-        onClick={() => transcribeAudio('https://s4-media1.study4.com/media/tez_media/sound/eco_toeic_1000_test_1_8.mp3')}
-        disabled={loading}
-      >
-        {loading ? 'Đang tải...' : 'Chuyển đổi âm thanh'}
-      </button>
-      <div>
-        <h2>Văn bản nhận dạng:</h2>
-        <p>{transcription}</p>
-      </div>
-    </div>
-  );
-};
+    <>
+      <Header2 />
+      <div style={{ padding: "20px", lineHeight: '10px' }}>
+        <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
+          {/* Sử dụng file MP3 từ thư mục public/audio */}
+          <audio ref={audioRef} controls src="/audio/1C.mp3">
+            Your browser does not support the audio element.
+          </audio>
+          <div style={{ marginTop: "10px" }}>
+            <button onClick={handlePlayAudio}>Play</button>
+          </div>
+          <div style={{ marginTop: "10px", textAlign: "left", paddingLeft: '300px' }}>
+            {check && (
+              <p>Câu hỏi: Mô tả câu hỏi ở đây.</p>
+            )}
 
-export default SpeechToText;
+            {["A", "B", "C"].map((option, index) => (
+              <div key={option} style={{ marginBottom: "10px" }}>
+                <label>
+                  <input
+                    type="radio"
+                    name="question"
+                    value={option}
+                    onChange={() => setSelectedAnswer(option)}
+                  />
+                  {option}
+                  {check && (
+                    <>
+                      : Mô tả đáp án ở đây
+                      {selectedAnswer === option && (
+                        <span style={{ color: "green", marginLeft: "10px" }}>✓ Đúng</span>
+                      )}
+                    </>
+                  )}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Button onClick={handleCheck}><i><SearchOutlined /></i> Kiểm tra</Button>
+          <Button type="primary" onClick={handleNext}>Tiếp theo <RightOutlined /></Button>
+        </div>
+        <div style={{ marginTop: "20px" }}>
+          <Button onClick={handleFilterToggle}>
+            {isFilterOn ? "Tắt bộ lọc" : "Bật bộ lọc"} {/* Hiển thị nút bật/tắt bộ lọc */}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default Quizz0;

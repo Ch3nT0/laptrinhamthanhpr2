@@ -1,12 +1,15 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
+import Header2 from "../../components/Header/Header2";
+import { Button } from "antd";
+import { RightOutlined, SearchOutlined } from "@ant-design/icons";
+import { CiMicrophoneOn } from "react-icons/ci";
 function Quizz2() {
     const navigate = useNavigate();
     const params = useParams();
     const [dataQuestion, setDataQuestion] = useState(null);
     const [check, setCheck] = useState(false);
-    const [textFromAudio, setTextFromAudio] = useState(""); 
+    const [textFromAudio, setTextFromAudio] = useState("");
     const [isListening, setIsListening] = useState(false);
     const audioRef = useRef(null); // Tham chiếu đến thẻ <audio>
     const audioContextRef = useRef(null); // Lưu AudioContext
@@ -63,11 +66,11 @@ function Quizz2() {
     const startVoiceRecognition = () => {
         if (isListening) {
             console.log("Voice recognition is already in progress.");
-            return; 
+            return;
         }
 
-        recognition.start(); 
-        setIsListening(true); 
+        recognition.start();
+        setIsListening(true);
     };
 
     recognition.onresult = (event) => {
@@ -103,44 +106,56 @@ function Quizz2() {
             };
         });
     };
-
-    return dataQuestion ? (
-        <div style={{ padding: "20px" }}>
-            <h2>Listening Quiz - Part {params.id}</h2>
-            <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
-                <audio ref={audioRef} controls src={dataQuestion.url}>
-                    Your browser does not support the audio element.
-                </audio>
-                <div style={{ marginTop: "10px" }}>
-                    <button onClick={handlePlayAudio}>Play with Filter</button>
+    const handleBack=()=>{
+        navigate(`/listening`);
+    }
+    return (
+        <>
+            <Header2/>
+            {dataQuestion ? (
+                <div style={{ padding: "20px" }}>
+                    <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
+                        <audio ref={audioRef} controls src={dataQuestion.url}>
+                            Your browser does not support the audio element.
+                        </audio>
+                        <div style={{ marginTop: "10px" }}>
+                            <button onClick={handlePlayAudio}>Play with Filter</button>
+                        </div>
+                        <div>
+                            <textarea value={textFromAudio} readOnly></textarea>
+                            <button onClick={startVoiceRecognition}><CiMicrophoneOn /></button>
+                        </div>
+                        <div style={{ marginTop: "10px" }}>
+                            {check && (
+                                <p>
+                                    {compareAnswers().map((result, index) => (
+                                        <span
+                                            key={index}
+                                            style={{
+                                                color: result.isCorrect ? "green" : "red",
+                                                fontWeight: "bold",
+                                            }}
+                                        >
+                                            {result.word}{" "}
+                                        </span>
+                                    ))}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                    <div style={{display:'flex',justifyContent: 'space-between'}}>
+                        <Button onClick={handleCheck} ><i><SearchOutlined /></i>Check</Button>
+                        {parseInt(params.id) % 15 === 0 ? (
+                            <Button type="primary" onClick={handleBack}>Back</Button>
+                        ):(
+                        <Button type="primary" onClick={handleNext}>Next<RightOutlined /></Button>)}
+                        
+                    </div>
                 </div>
-                <div>
-                    <textarea value={textFromAudio} readOnly></textarea>
-                    <button onClick={startVoiceRecognition}>Start Voice</button>
-                </div>
-                <div style={{ marginTop: "10px" }}>
-                    {check && (
-                        <p>
-                            {compareAnswers().map((result, index) => (
-                                <span
-                                    key={index}
-                                    style={{
-                                        color: result.isCorrect ? "green" : "red",
-                                        fontWeight: "bold",
-                                    }}
-                                >
-                                    {result.word}{" "}
-                                </span>
-                            ))}
-                        </p>
-                    )}
-                </div>
-            </div>
-            <button onClick={handleCheck}>Check</button>
-            <button onClick={handleNext}>Next</button>
-        </div>
-    ) : (
-        <div style={{ padding: "20px" }}>Loading...</div>
+            ) : (
+                <div style={{ padding: "20px" }}>Loading...</div>
+            )}
+        </>
     );
 }
 

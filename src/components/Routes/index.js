@@ -5,7 +5,7 @@ import Listening from "../../pages/Listening";
 import Quizz from "../../pages/Quizz";
 import Quizz2 from "../../pages/Quizz2";
 import Speaking from "../../pages/Speaking";
-import SpeechToText from "../audioToTxt";
+import Quizz0 from "../audioToTxt";
 
 export const routes=[
     {
@@ -23,8 +23,8 @@ export const routes=[
                 path: 'quizz/:id',
                 element: <Quizz />
             },{
-                path: 'att',
-                element: <SpeechToText />
+                path: 'test/:id',
+                element: <Quizz0 />
             },{
                 path: 'quizz2/:id',
                 element: <Quizz2 />
