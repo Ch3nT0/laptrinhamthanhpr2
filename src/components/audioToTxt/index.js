@@ -5,130 +5,177 @@ import { RightOutlined, SearchOutlined } from '@ant-design/icons';
 import Header2 from "../../components/Header/Header2";
 
 function Quizz0() {
-  const params = useParams();
-  const navigate = useNavigate();
-  const [check, setCheck] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [isFilterOn, setIsFilterOn] = useState(false); // Trạng thái bật/tắt bộ lọc âm thanh
-  const audioContextRef = useRef(null);
-  const audioRef = useRef(null);
-  const audioSourceRef = useRef(null);  // Ref for MediaElementSourceNode
-  const filterRef = useRef(null); // Ref for the audio filter
+    const params = useParams();
+    const navigate = useNavigate();
+    const [dataQuestion, setDataQuestion] = useState(null);
+    const [check, setCheck] = useState(false);
+    const [selectedAnswer, setSelectedAnswer] = useState(null);
+    const [difficulty, setDifficulty] = useState("easy"); // easy | medium | hard
+    const audioContextRef = useRef(null);
+    const audioRef = useRef(null);
 
-  const handleCheck = () => {
-    setCheck(!check);
-  };
+    // Fetch data cho câu hỏi từ server
+    useEffect(() => {
+        fetch(`http://localhost:5000/listen?question=${params.id}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => setDataQuestion(data))
+            .catch(error => console.error("Fetch error:", error));
+    }, [params.id]);
 
-  const handleNext = () => {
-    setCheck(false);
-    navigate(`/quizz/${parseInt(params.id) + 1}`);
-  };
+    const handleCheck = () => setCheck(!check);
 
-  useEffect(() => {
-    if (!audioRef.current) return;
-
-    // Khởi tạo AudioContext và kết nối bộ lọc chỉ một lần
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    // Check if the audio source has already been connected
-    if (!audioSourceRef.current) {
-      const audioElement = audioRef.current;
-      audioSourceRef.current = audioContextRef.current.createMediaElementSource(audioElement);
-
-      // Tạo một bộ lọc bandpass hoặc high-pass mạnh
-      const filter = audioContextRef.current.createBiquadFilter();
-      filter.type = "highpass";  // Sử dụng highpass để cắt các tần số thấp
-      filter.frequency.value = 1500;  // Cắt tần số dưới 1500Hz (chỉ để lại âm thanh cao)
-
-      filterRef.current = filter; // Lưu lại ref bộ lọc
-
-      audioSourceRef.current.connect(filter);
-      filter.connect(audioContextRef.current.destination);
-    }
-
-    return () => {
-      // Hủy kết nối khi component unmount
-      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
-        audioContextRef.current.close();
-      }
+    const handleNext = () => {
+        setCheck(false);
+        navigate(`/quizz/${parseInt(params.id) + 1}`);
     };
-  }, []);  // Chạy lại khi có audio mới
 
-  const handlePlayAudio = () => {
-    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
-    }
-    audioRef.current.play();
-  };
+    const handleBack = () => navigate(`/listening`);
 
-  const handleFilterToggle = () => {
-    setIsFilterOn(prevState => {
-      const newState = !prevState;
-      if (filterRef.current) {
-        filterRef.current.frequency.value = newState ? 1500 : 0; // Bật/tắt bộ lọc
-      }
-      return newState;
-    });
-  };
+    // Tạo các hiệu ứng âm thanh và tốc độ phát lại tùy theo độ khó
+    const setupAudio = () => {
+        if (!audioRef.current) return;
 
-  const handleBack = () => {
-    navigate(`/listening`);
-  };
+        const audio = audioRef.current;
 
-  return (
-    <>
-      <Header2 />
-      <div style={{ padding: "20px", lineHeight: '10px' }}>
-        <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
-          {/* Sử dụng file MP3 từ thư mục public/audio */}
-          <audio ref={audioRef} controls src="/audio/1C.mp3">
-            Your browser does not support the audio element.
-          </audio>
-          <div style={{ marginTop: "10px" }}>
-            <button onClick={handlePlayAudio}>Play</button>
-          </div>
-          <div style={{ marginTop: "10px", textAlign: "left", paddingLeft: '300px' }}>
-            {check && (
-              <p>Câu hỏi: Mô tả câu hỏi ở đây.</p>
+        // Kiểm tra và khởi tạo AudioContext nếu chưa có
+        if (!audioContextRef.current) {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            audioContextRef.current = context;
+
+            // Tạo MediaElementSource MỘT LẦN DUY NHẤT
+            const source = context.createMediaElementSource(audio);
+            audioRef.current._sourceNode = source; // Lưu lại để không tạo lại nữa
+        }
+
+        const context = audioContextRef.current;
+        const source = audioRef.current._sourceNode;
+
+        // Ngắt các kết nối cũ nếu có
+        source.disconnect();
+
+        // Reset chain
+        let lastNode = source;
+
+        // Thêm hiệu ứng tùy thuộc vào độ khó
+        if (difficulty === "medium") {
+            const distortion = context.createWaveShaper();
+            distortion.curve = makeDistortionCurve(50);
+            distortion.oversample = '4x';
+            lastNode.connect(distortion);
+            lastNode = distortion;
+        }
+
+        // Kết nối đến AudioContext destination (output)
+        lastNode.connect(context.destination);
+
+        // Đặt tốc độ phát lại cho "hard"
+        if (difficulty === "hard") {
+            audio.playbackRate = 1.5;
+        } else {
+            audio.playbackRate = 1.0;
+        }
+    };
+
+    // Hàm tạo hiệu ứng distortion
+    const makeDistortionCurve = (amount = 50) => {
+        const k = typeof amount === 'number' ? amount : 50;
+        const n_samples = 44100;
+        const curve = new Float32Array(n_samples);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < n_samples; ++i) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    };
+
+    // Đảm bảo khi chọn độ khó, âm thanh sẽ được áp dụng đúng hiệu ứng
+    useEffect(() => {
+        setupAudio();
+    }, [difficulty]);
+
+    // Hàm phát âm thanh
+    const handlePlayAudio = () => {
+        const audio = audioRef.current;
+        if (audioContextRef.current?.state === "suspended") {
+            audioContextRef.current.resume();
+        }
+        audio.play();
+    };
+
+    return (
+        <>
+            <Header2 />
+            {dataQuestion ? (
+                <div style={{ padding: "20px", lineHeight: '10px' }}>
+                    <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
+                        <audio ref={audioRef} controls src="/audio/1C.mp3" onClick={handlePlayAudio}>
+                            Your browser does not support the audio element.
+                        </audio>
+
+                        {/* Chọn độ khó */}
+                        <div style={{ marginTop: "10px" }}>
+                            <span>Choose Difficulty: </span>
+                            {["easy", "medium", "hard"].map(level => (
+                                <Button
+                                    key={level}
+                                    type={difficulty === level ? "primary" : "default"}
+                                    onClick={() => setDifficulty(level)}
+                                    style={{ margin: '0 5px' }}
+                                >
+                                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Hiển thị câu hỏi và đáp án */}
+                        <div style={{ marginTop: "10px", textAlign: "left", paddingLeft: '300px' }}>
+                            {check && (<p>{dataQuestion[0].textQ}</p>)}
+
+                            {["A", "B", "C"].map((option, index) => (
+                                <div key={option} style={{ marginBottom: "10px" }}>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="question"
+                                            value={option}
+                                            onChange={() => setSelectedAnswer(option)}
+                                        />
+                                        {option}
+                                        {check && (
+                                            <>
+                                                : {dataQuestion[0].textA[index]}
+                                                {dataQuestion[0].answer === option && (
+                                                    <span style={{ color: "green", marginLeft: "10px" }}>✓ Correct</span>
+                                                )}
+                                                {selectedAnswer === option && dataQuestion[0].answer !== option && (
+                                                    <span style={{ color: "red", marginLeft: "10px" }}>✗ Wrong</span>
+                                                )}
+                                            </>
+                                        )}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Button onClick={handleCheck}><SearchOutlined /> Check</Button>
+                        {parseInt(params.id) % 15 === 0 ? (
+                            <Button type="primary" onClick={handleBack}>Back</Button>
+                        ) : (
+                            <Button type="primary" onClick={handleNext}>Next <RightOutlined /></Button>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div style={{ padding: "20px" }}>Loading...</div>
             )}
-
-            {["A", "B", "C"].map((option, index) => (
-              <div key={option} style={{ marginBottom: "10px" }}>
-                <label>
-                  <input
-                    type="radio"
-                    name="question"
-                    value={option}
-                    onChange={() => setSelectedAnswer(option)}
-                  />
-                  {option}
-                  {check && (
-                    <>
-                      : Mô tả đáp án ở đây
-                      {selectedAnswer === option && (
-                        <span style={{ color: "green", marginLeft: "10px" }}>✓ Đúng</span>
-                      )}
-                    </>
-                  )}
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Button onClick={handleCheck}><i><SearchOutlined /></i> Kiểm tra</Button>
-          <Button type="primary" onClick={handleNext}>Tiếp theo <RightOutlined /></Button>
-        </div>
-        <div style={{ marginTop: "20px" }}>
-          <Button onClick={handleFilterToggle}>
-            {isFilterOn ? "Tắt bộ lọc" : "Bật bộ lọc"} {/* Hiển thị nút bật/tắt bộ lọc */}
-          </Button>
-        </div>
-      </div>
-    </>
-  );
+        </>
+    );
 }
 
 export default Quizz0;

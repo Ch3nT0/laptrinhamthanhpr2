@@ -11,6 +11,7 @@ function Quizz2() {
     const [check, setCheck] = useState(false);
     const [textFromAudio, setTextFromAudio] = useState("");
     const [isListening, setIsListening] = useState(false);
+    const [difficulty, setDifficulty] = useState("easy");
     const audioRef = useRef(null); // Tham chiếu đến thẻ <audio>
     const audioContextRef = useRef(null); // Lưu AudioContext
 
@@ -29,34 +30,73 @@ function Quizz2() {
             .catch(error => console.error("Fetch error:", error));
     }, [params.id]);
 
-    useEffect(() => {
+    const setupAudio = () => {
         if (!audioRef.current) return;
 
-        // Khởi tạo AudioContext và kết nối bộ lọc
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        const audioElement = audioRef.current;
-        const track = audioContextRef.current.createMediaElementSource(audioElement);
+        const audio = audioRef.current;
 
-        const filter = audioContextRef.current.createBiquadFilter();
-        filter.type = "highpass";
-        filter.frequency.value = 500; // Cắt tần số trên 500Hz
+        // Kiểm tra và khởi tạo AudioContext nếu chưa có
+        if (!audioContextRef.current) {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            audioContextRef.current = context;
 
-        track.connect(filter);
-        filter.connect(audioContextRef.current.destination);
+            // Tạo MediaElementSource MỘT LẦN DUY NHẤT
+            const source = context.createMediaElementSource(audio);
+            audioRef.current._sourceNode = source; // Lưu lại để không tạo lại nữa
+        }
 
-        return () => {
-            // Hủy kết nối khi component unmount
-            if (audioContextRef.current && audioContextRef.current.state !== "closed") {
-                audioContextRef.current.close();
-            }
-        };
-    }, []); // Chạy lại khi có audio mới
+        const context = audioContextRef.current;
+        const source = audioRef.current._sourceNode;
+
+        // Ngắt các kết nối cũ nếu có
+        source.disconnect();
+
+        // Reset chain
+        let lastNode = source;
+
+        // Thêm hiệu ứng tùy thuộc vào độ khó
+        if (difficulty === "medium") {
+            const distortion = context.createWaveShaper();
+            distortion.curve = makeDistortionCurve(50);
+            distortion.oversample = '4x';
+            lastNode.connect(distortion);
+            lastNode = distortion;
+        }
+
+        // Kết nối đến AudioContext destination (output)
+        lastNode.connect(context.destination);
+
+        // Đặt tốc độ phát lại cho "hard"
+        if (difficulty === "hard") {
+            audio.playbackRate = 1.5;
+        } else {
+            audio.playbackRate = 1.0;
+        }
+    };
+
+    const makeDistortionCurve = (amount = 50) => {
+        const k = typeof amount === 'number' ? amount : 50;
+        const n_samples = 44100;
+        const curve = new Float32Array(n_samples);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < n_samples; ++i) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
+    };
+
+    // Đảm bảo khi chọn độ khó, âm thanh sẽ được áp dụng đúng hiệu ứng
+    useEffect(() => {
+        setupAudio();
+    }, [difficulty]);
 
     const handlePlayAudio = () => {
-        if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+        const audio = audioRef.current;
+        if (audioContextRef.current?.state === "suspended") {
             audioContextRef.current.resume();
         }
-        audioRef.current.play();
+        audio.play();
     };
 
     const handleCheck = () => {
@@ -92,6 +132,7 @@ function Quizz2() {
 
     const handleNext = () => {
         setCheck(false);
+        setDifficulty("easy");
         navigate(`/quizz2/${parseInt(params.id) + 1}`);
     };
 
@@ -113,13 +154,24 @@ function Quizz2() {
         <>
             <Header2/>
             {dataQuestion ? (
-                <div style={{ padding: "20px" }}>
+                <div style={{ padding: "20px", lineHeight: '50px' }}>
                     <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
-                        <audio ref={audioRef} controls src={dataQuestion.url}>
+                        <audio ref={audioRef} controls  src={`/audio/${dataQuestion.id}.mp3`} >
+                            {/* src={`/audio/${dataQuestion.id}.mp3`} */}
                             Your browser does not support the audio element.
                         </audio>
                         <div style={{ marginTop: "10px" }}>
-                            <button onClick={handlePlayAudio}>Play with Filter</button>
+                            <span>Choose Difficulty: </span>
+                            {["easy", "medium", "hard"].map(level => (
+                                <Button
+                                    key={level}
+                                    type={difficulty === level ? "primary" : "default"}
+                                    onClick={() => setDifficulty(level)}
+                                    style={{ margin: '0 5px' }}
+                                >
+                                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                                </Button>
+                            ))}
                         </div>
                         <div>
                             <textarea value={textFromAudio} readOnly></textarea>
