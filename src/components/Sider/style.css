@@ -17,3 +17,8 @@ button:hover{
     color: #4d90d9;
     cursor: pointer;
 }
+button.active {
+    border: 2px solid #4d90d9;
+    background-color: #eaf4fc; /* nền xanh nhạt */
+    border-radius: 8px; /* tùy chọn, làm bo góc */
+}

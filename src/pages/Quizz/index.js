@@ -28,8 +28,10 @@ function Quizz() {
     const handleCheck = () => setCheck(!check);
 
     const handleNext = () => {
-        setCheck(false);
-        navigate(`/quizz/${parseInt(params.id) + 1}`);
+        setSelectedAnswer(null); 
+        setCheck(false);         
+        setDataQuestion(null);  
+        navigate(`/quizz1/${parseInt(params.id) + 1}`);
     };
 
     const handleBack = () => navigate(`/listening`);
@@ -107,14 +109,31 @@ function Quizz() {
         }
         audio.play();
     };
-    
+    const getOptionStyle = (option) => ({
+        display: 'inline-flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: selectedAnswer === option ? '50px' : '40px',
+        height: selectedAnswer === option ? '50px' : '40px',
+        borderRadius: '50%',
+        backgroundColor: selectedAnswer === option ? '#4caf50' : '#eee',
+        color: selectedAnswer === option ? '#fff' : '#000',
+        fontWeight: 'bold',
+        fontSize: selectedAnswer === option ? '20px' : '16px',
+        border: '2px solid #ccc',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease'
+      });
+      
     return (
         <>
             <Header2 />
             {dataQuestion ? (
                 <div style={{ padding: "20px", lineHeight: '10px' }}>
                     <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
-                        <audio ref={audioRef} controls src={`/${dataQuestion[0].url}`} onClick={handlePlayAudio}>
+                        <audio ref={audioRef} controls src={`/${dataQuestion[0].url}`} onClick={handlePlayAudio}
+                             style={{ width: "50%",
+                                    height: "60px"}}>
                             Your browser does not support the audio element.
                         </audio>
 
@@ -139,37 +158,54 @@ function Quizz() {
 
                             {["A", "B", "C"].map((option, index) => (
                                 <div key={option} style={{ marginBottom: "10px" }}>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="question"
-                                            value={option}
-                                            onChange={() => setSelectedAnswer(option)}
-                                        />
-                                        {option}
-                                        {check && (
-                                            <>
-                                                : {dataQuestion[0].textA[index]}
-                                                {dataQuestion[0].answer === option && (
-                                                    <span style={{ color: "green", marginLeft: "10px" }}>✓ Correct</span>
-                                                )}
-                                                {selectedAnswer === option && dataQuestion[0].answer !== option && (
-                                                    <span style={{ color: "red", marginLeft: "10px" }}>✗ Wrong</span>
-                                                )}
-                                            </>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                    <input
+                                        type="radio"
+                                        name="question"
+                                        value={option}
+                                        onChange={() => setSelectedAnswer(option)}
+                                        style={{ display: 'none' }}
+                                    />
+                                    <div style={getOptionStyle(option)}>{option}</div>
+                                    {check && (
+                                        <>
+                                        <span>{dataQuestion[0].textA[index]}</span>
+                                        {dataQuestion[0].answer === option && (
+                                            <span style={{ color: "green", marginLeft: "10px" }}>✓ Correct</span>
                                         )}
+                                        {selectedAnswer === option && dataQuestion[0].answer !== option && (
+                                            <span style={{ color: "red", marginLeft: "10px" }}>✗ Wrong</span>
+                                        )}
+                                        </>
+                                    )}
                                     </label>
                                 </div>
-                            ))}
+                                ))}
+
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Button onClick={handleCheck}><SearchOutlined /> Check</Button>
+                    <div style={{ display: 'flex', justifyContent: 'center' , gap: '350px'}}>
+                        <Button onClick={handleCheck} style={{
+                            padding: '10px 24px',
+                            fontSize: '16px',
+                            height: 'auto',
+                            borderRadius: '6px'
+                        }}><SearchOutlined /> Check</Button>
                         {parseInt(params.id) % 15 === 0 ? (
-                            <Button type="primary" onClick={handleBack}>Back</Button>
+                            <Button type="primary" onClick={handleBack} style={{
+                                padding: '10px 24px',
+                                fontSize: '16px',
+                                height: 'auto',
+                                borderRadius: '6px'
+                            }} >Back</Button>
                         ) : (
-                            <Button type="primary" onClick={handleNext}>Next <RightOutlined /></Button>
+                            <Button type="primary" onClick={handleNext} style={{
+                                padding: '10px 24px',
+                                fontSize: '16px',
+                                height: 'auto',
+                                borderRadius: '6px'
+                            }}>Next <RightOutlined /></Button>
                         )}
                     </div>
                 </div>

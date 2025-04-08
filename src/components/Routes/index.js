@@ -20,7 +20,7 @@ export const routes=[
                 path: 'listening',
                 element: <Listening />
             },{
-                path: 'quizz/:id',
+                path: 'quizz1/:id',
                 element: <Quizz />
             },{
                 path: 'test/:id',

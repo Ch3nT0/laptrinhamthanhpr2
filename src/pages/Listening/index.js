@@ -8,7 +8,7 @@ function Listening() {
   const navigate = useNavigate();
 
   const handleClick = (index) => {
-    navigate(`/quizz/${index*15+1}`);
+    navigate(`/quizz1/${index*15+1}`);
   };
 
   return (

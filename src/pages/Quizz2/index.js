@@ -100,6 +100,10 @@ function Quizz2() {
     };
 
     const handleCheck = () => {
+        if (isListening) {
+            recognition.stop();
+            setIsListening(false);
+        }
         setCheck(!check);
     };
 
@@ -131,8 +135,13 @@ function Quizz2() {
     };
 
     const handleNext = () => {
+        if (isListening) {
+            recognition.stop();
+            setIsListening(false);
+        }
         setCheck(false);
         setDifficulty("easy");
+        setTextFromAudio(''); 
         navigate(`/quizz2/${parseInt(params.id) + 1}`);
     };
 
@@ -148,7 +157,7 @@ function Quizz2() {
         });
     };
     const handleBack=()=>{
-        navigate(`/listening`);
+        navigate(`/speaking`);
     }
     return (
         <>
@@ -156,7 +165,9 @@ function Quizz2() {
             {dataQuestion ? (
                 <div style={{ padding: "20px", lineHeight: '50px' }}>
                     <div style={{ marginBottom: "30px", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
-                        <audio ref={audioRef} controls  src={`/audio/${dataQuestion.id}.mp3`} >
+                        <audio ref={audioRef} controls  src={`/audio/${dataQuestion.id}.mp3`} 
+                                    style={{ width: "50%",
+                                    height: "60px"}} >
                             {/* src={`/audio/${dataQuestion.id}.mp3`} */}
                             Your browser does not support the audio element.
                         </audio>
@@ -173,9 +184,37 @@ function Quizz2() {
                                 </Button>
                             ))}
                         </div>
-                        <div>
-                            <textarea value={textFromAudio} readOnly></textarea>
-                            <button onClick={startVoiceRecognition}><CiMicrophoneOn /></button>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                            <textarea value={textFromAudio} readOnly
+                            style={{
+                                width: '600px',         
+                                height: '220px',        
+                                fontSize: '16px',       
+                                padding: '10px',        
+                                borderRadius: '8px',    
+                                resize: 'none'          
+                            }}
+                            ></textarea>
+                            <button onClick={startVoiceRecognition}
+                            style={{
+                                position: 'absolute',
+                                bottom: '10px',
+                                right: '10px',
+                                width: '60px',
+                                height: '60px',
+                                borderRadius: '50%',
+                                backgroundColor: isListening ? '#f44336' : '#4caf50', // đỏ khi đang ghi
+                                border: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                boxShadow: isListening
+                                    ? '0 0 0 0 rgba(244, 67, 54, 0.7)'
+                                    : '0 2px 5px rgba(0,0,0,0.3)',
+                                animation: isListening ? 'pulse 1.5s infinite' : 'none',
+                            }}                           
+                            ><CiMicrophoneOn size={28} color="#fff" /></button>
                         </div>
                         <div style={{ marginTop: "10px" }}>
                             {check && (
@@ -195,12 +234,27 @@ function Quizz2() {
                             )}
                         </div>
                     </div>
-                    <div style={{display:'flex',justifyContent: 'space-between'}}>
-                        <Button onClick={handleCheck} ><i><SearchOutlined /></i>Check</Button>
+                    <div style={{display:'flex',justifyContent: 'center' , gap:'350px'}}>
+                        <Button onClick={handleCheck} style={{
+                                padding: '10px 24px',
+                                fontSize: '20px',
+                                height: 'auto',
+                                borderRadius: '6px'
+                            }}><i><SearchOutlined /></i>Check</Button>
                         {parseInt(params.id) % 15 === 0 ? (
-                            <Button type="primary" onClick={handleBack}>Back</Button>
+                            <Button type="primary" onClick={handleBack} style={{
+                                padding: '10px 24px',
+                                fontSize: '20px',
+                                height: 'auto',
+                                borderRadius: '6px'
+                            }}>Back</Button>
                         ):(
-                        <Button type="primary" onClick={handleNext}>Next<RightOutlined /></Button>)}
+                        <Button type="primary" onClick={handleNext} style={{
+                            padding: '10px 24px',
+                            fontSize: '20px',
+                            height: 'auto',
+                            borderRadius: '6px'
+                        }}>Next<RightOutlined /></Button>)}
                         
                     </div>
                 </div>
